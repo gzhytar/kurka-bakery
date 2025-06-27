@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { Plus, Minus, ShoppingCart } from 'lucide-react'
@@ -18,13 +18,19 @@ interface BreadCardProps {
 
 export function BreadCard({ product, selectedBakeDate }: BreadCardProps) {
   const [qty, setQty] = useState(1)
+  const [isHydrated, setIsHydrated] = useState(false)
   const addItem = useCartStore((state) => state.addItem)
   const items = useCartStore((state) => state.items)
   
-  // Find existing quantity for this product and date
-  const existingItem = items.find(
+  // Ensure hydration before accessing cart state
+  useEffect(() => {
+    setIsHydrated(true)
+  }, [])
+  
+  // Find existing quantity for this product and date (only after hydration)
+  const existingItem = isHydrated ? items.find(
     item => item.productId === product.id && item.bakeDate === selectedBakeDate
-  )
+  ) : null
   const existingQty = existingItem?.qty || 0
 
   const handleAddToCart = () => {
@@ -55,9 +61,15 @@ export function BreadCard({ product, selectedBakeDate }: BreadCardProps) {
           {isLowStock && (
             <Badge variant="warning">Pouze {product.remainingQty} ks</Badge>
           )}
-          {existingQty > 0 && (
-            <Badge variant="success">V košíku: {existingQty}</Badge>
-          )}
+          {/* Always render cart badge but control visibility */}
+          <Badge 
+            variant="success" 
+            className={`transition-opacity ${
+              isHydrated && existingQty > 0 ? 'opacity-100' : 'opacity-0 pointer-events-none'
+            }`}
+          >
+            V košíku: {isHydrated ? existingQty : 0}
+          </Badge>
         </div>
       </div>
 

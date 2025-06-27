@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { Menu, X, ShoppingCart } from 'lucide-react'
@@ -17,8 +17,16 @@ const navigation = [
 
 export function Navbar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [isHydrated, setIsHydrated] = useState(false)
   const getTotalItems = useCartStore((state) => state.getTotalItems)
-  const totalItems = getTotalItems()
+  
+  // Get total items only after hydration to prevent mismatch
+  const totalItems = isHydrated ? getTotalItems() : 0
+
+  // Ensure component is hydrated before showing cart count
+  useEffect(() => {
+    setIsHydrated(true)
+  }, [])
 
   return (
     <header className="bg-white shadow-sm sticky top-0 z-50">
@@ -59,11 +67,14 @@ export function Navbar() {
             <Link href="/objednavka">
               <Button variant="outline" size="sm" className="relative">
                 <ShoppingCart className="h-4 w-4" />
-                {totalItems > 0 && (
-                  <span className="absolute -top-2 -right-2 bg-orange-600 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
-                    {totalItems}
-                  </span>
-                )}
+                {/* Always render badge but control visibility to prevent hydration mismatch */}
+                <span 
+                  className={`absolute -top-2 -right-2 bg-orange-600 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center transition-opacity ${
+                    isHydrated && totalItems > 0 ? 'opacity-100' : 'opacity-0 pointer-events-none'
+                  }`}
+                >
+                  {isHydrated ? totalItems : 0}
+                </span>
                 <span className="ml-2 hidden sm:inline">Košík</span>
               </Button>
             </Link>

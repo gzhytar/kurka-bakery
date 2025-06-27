@@ -74,9 +74,15 @@ export default function ProductDetailClient() {
   const [product, setProduct] = useState<ProductWithStock | null>(null)
   const [selectedBakeDate, setSelectedBakeDate] = useState<string | null>(null)
   const [qty, setQty] = useState(1)
+  const [isHydrated, setIsHydrated] = useState(false)
 
   const addItem = useCartStore((state) => state.addItem)
   const items = useCartStore((state) => state.items)
+
+  // Ensure hydration before accessing cart state
+  useEffect(() => {
+    setIsHydrated(true)
+  }, [])
 
   useEffect(() => {
     // Find product by slug
@@ -124,10 +130,10 @@ export default function ProductDetailClient() {
     )
   }
 
-  // Find existing quantity for this product and date
-  const existingItem = items.find(
+  // Find existing quantity for this product and date (only after hydration)
+  const existingItem = isHydrated ? items.find(
     item => item.productId === product.id && item.bakeDate === selectedBakeDate
-  )
+  ) : null
   const existingQty = existingItem?.qty || 0
 
   const isOutOfStock = product.remainingQty <= 0
@@ -165,9 +171,15 @@ export default function ProductDetailClient() {
               {isLowStock && (
                 <Badge variant="warning">Pouze {product.remainingQty} ks</Badge>
               )}
-              {existingQty > 0 && (
-                <Badge variant="success">V košíku: {existingQty}</Badge>
-              )}
+              {/* Always render cart badge but control visibility */}
+              <Badge 
+                variant="success"
+                className={`transition-opacity ${
+                  isHydrated && existingQty > 0 ? 'opacity-100' : 'opacity-0 pointer-events-none'
+                }`}
+              >
+                V košíku: {isHydrated ? existingQty : 0}
+              </Badge>
             </div>
           </div>
 

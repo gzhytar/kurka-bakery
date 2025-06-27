@@ -138,7 +138,7 @@ export default function ContactPage() {
                 {/* Google Maps Embed */}
                 <div className="aspect-video bg-gray-200 rounded-lg overflow-hidden mb-4">
                   <iframe
-                    src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d2608.5!2d16.5!3d49.2!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2zNDnCsDEyJzAwLjAiTiAxNsKwMzAnMDAuMCJF!5e0!3m2!1scs!2scz!4v1234567890"
+                    src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3129.6804902577273!2d16.55894791255111!3d49.201781371261426!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x47129682b7ff2323%3A0xcb5b35ca34e39583!2sKopretinov%C3%A1%2017%2C%20637%2000%20Brno-Jundrov!5e1!3m2!1sen!2scz!4v1751066345402!5m2!1sen!2scz"
                     width="100%"
                     height="100%"
                     style={{ border: 0 }}
