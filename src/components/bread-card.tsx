@@ -1,124 +1,131 @@
-'use client';
+'use client'
 
-import Image from 'next/image';
-import { useCartStore } from '@/store/cart';
-import { formatPrice } from '@/lib/utils';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Plus, Minus } from 'lucide-react';
-import type { ProductWithStock } from '@/types';
+import { useState } from 'react'
+import Image from 'next/image'
+import Link from 'next/link'
+import { Plus, Minus, ShoppingCart } from 'lucide-react'
+import { Card, CardContent, CardFooter } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import { useCartStore } from '@/store/cart'
+import { formatPrice } from '@/lib/utils'
+import type { ProductWithStock } from '@/types'
 
 interface BreadCardProps {
-  product: ProductWithStock;
-  selectedBakeDate: string;
+  product: ProductWithStock
+  selectedBakeDate: string
 }
 
 export function BreadCard({ product, selectedBakeDate }: BreadCardProps) {
-  const { addItem, removeItem, updateQty, items } = useCartStore();
+  const [qty, setQty] = useState(1)
+  const addItem = useCartStore((state) => state.addItem)
+  const items = useCartStore((state) => state.items)
   
-  const cartItem = items.find(
-    (item) => item.productId === product.id && item.bakeDate === selectedBakeDate
-  );
-  
-  const isOutOfStock = product.remainingQty === 0;
-  const isLowStock = product.remainingQty <= 3 && product.remainingQty > 0;
+  // Find existing quantity for this product and date
+  const existingItem = items.find(
+    item => item.productId === product.id && item.bakeDate === selectedBakeDate
+  )
+  const existingQty = existingItem?.qty || 0
 
   const handleAddToCart = () => {
-    if (!isOutOfStock) {
-      addItem(product.id, selectedBakeDate, 1);
-    }
-  };
+    addItem(product.id, selectedBakeDate, qty)
+    setQty(1) // Reset quantity after adding
+  }
 
-  const handleUpdateQty = (newQty: number) => {
-    if (newQty <= 0) {
-      removeItem(product.id, selectedBakeDate);
-    } else {
-      updateQty(product.id, selectedBakeDate, newQty);
-    }
-  };
+  const isOutOfStock = product.remainingQty <= 0
+  const isLowStock = product.remainingQty <= 3 && product.remainingQty > 0
 
   return (
-    <Card className="overflow-hidden">
-      <CardHeader className="p-0">
-        <div className="relative aspect-square">
+    <Card className="group overflow-hidden transition-all duration-300 hover:shadow-lg">
+      <div className="relative aspect-[4/3] overflow-hidden">
+        <Link href={`/shop/${product.slug}`}>
           <Image
             src={product.imagePath}
             alt={product.name}
             fill
-            className="object-cover"
+            className="object-cover transition-transform duration-300 group-hover:scale-105"
           />
+        </Link>
+        
+        {/* Stock badges */}
+        <div className="absolute top-3 right-3 space-y-2">
           {isOutOfStock && (
-            <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
-              <Badge variant="destructive" className="text-sm">
-                Vyprodáno
-              </Badge>
-            </div>
+            <Badge variant="destructive">Vyprodáno</Badge>
           )}
-          {isLowStock && !isOutOfStock && (
-            <Badge variant="secondary" className="absolute top-2 right-2">
-              Posledních {product.remainingQty}
-            </Badge>
+          {isLowStock && (
+            <Badge variant="warning">Pouze {product.remainingQty} ks</Badge>
+          )}
+          {existingQty > 0 && (
+            <Badge variant="success">V košíku: {existingQty}</Badge>
           )}
         </div>
-      </CardHeader>
-      
+      </div>
+
       <CardContent className="p-4">
-        <CardTitle className="text-lg mb-2">{product.name}</CardTitle>
-        <p className="text-sm text-muted-foreground mb-4 line-clamp-2">
+        <Link href={`/shop/${product.slug}`}>
+          <h3 className="font-semibold text-lg mb-2 hover:text-orange-600 transition-colors">
+            {product.name}
+          </h3>
+        </Link>
+        
+        <p className="text-gray-600 text-sm mb-3 line-clamp-2">
           {product.description}
         </p>
+        
         <div className="flex items-center justify-between">
-          <span className="text-xl font-bold text-orange-600">
+          <span className="text-2xl font-bold text-orange-600">
             {formatPrice(product.priceCents)}
           </span>
-          <span className="text-sm text-muted-foreground">
-            Zbývá: {product.remainingQty}
+          <span className="text-sm text-gray-500">
+            Zbývá: {product.remainingQty} ks
           </span>
         </div>
       </CardContent>
-      
+
       <CardFooter className="p-4 pt-0">
-        {cartItem ? (
-          <div className="flex items-center justify-between w-full">
-            <div className="flex items-center space-x-2">
+        {!isOutOfStock ? (
+          <div className="w-full space-y-3">
+            {/* Quantity selector */}
+            <div className="flex items-center justify-center space-x-3">
               <Button
                 variant="outline"
                 size="icon"
-                onClick={() => handleUpdateQty(cartItem.qty - 1)}
-                className="h-8 w-8"
+                onClick={() => setQty(Math.max(1, qty - 1))}
+                disabled={qty <= 1}
               >
                 <Minus className="h-4 w-4" />
               </Button>
-              <span className="w-8 text-center">{cartItem.qty}</span>
+              
+              <span className="font-medium min-w-[2rem] text-center">
+                {qty}
+              </span>
+              
               <Button
                 variant="outline"
                 size="icon"
-                onClick={() => handleUpdateQty(cartItem.qty + 1)}
-                disabled={cartItem.qty >= product.remainingQty}
-                className="h-8 w-8"
+                onClick={() => setQty(Math.min(product.remainingQty, qty + 1))}
+                disabled={qty >= product.remainingQty}
               >
                 <Plus className="h-4 w-4" />
               </Button>
             </div>
-            <Button
-              variant="destructive"
-              size="sm"
-              onClick={() => removeItem(product.id, selectedBakeDate)}
+
+            {/* Add to cart button */}
+            <Button 
+              onClick={handleAddToCart}
+              className="w-full"
+              disabled={qty > product.remainingQty}
             >
-              Odebrat
+              <ShoppingCart className="w-4 h-4 mr-2" />
+              Přidat do košíku
             </Button>
           </div>
         ) : (
-          <Button
-            onClick={handleAddToCart}
-            disabled={isOutOfStock}
-            className="w-full"
-          >
-            {isOutOfStock ? 'Vyprodáno' : 'Přidat do košíku'}
+          <Button disabled className="w-full">
+            Vyprodáno
           </Button>
         )}
       </CardFooter>
     </Card>
-  );
+  )
 } 

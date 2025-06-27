@@ -1,77 +1,108 @@
-'use client';
+'use client'
 
-import Link from 'next/link';
-import Image from 'next/image';
-import { useCartStore } from '@/store/cart';
-import { ShoppingCart, Menu } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+import { useState } from 'react'
+import Link from 'next/link'
+import Image from 'next/image'
+import { Menu, X, ShoppingCart } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { useCartStore } from '@/store/cart'
+
+const navigation = [
+  { name: 'Domů', href: '/' },
+  { name: 'Obchod', href: '/shop' },
+  { name: 'O nás', href: '/o-nas' },
+  { name: 'FAQ', href: '/faq' },
+  { name: 'Kontakt', href: '/kontakt' },
+]
 
 export function Navbar() {
-  const totalItems = useCartStore((state) => state.getTotalItems());
-
-  const navItems = [
-    { href: '/', label: 'Domů' },
-    { href: '/shop', label: 'Obchod' },
-    { href: '/o-nas', label: 'O nás' },
-    { href: '/faq', label: 'FAQ' },
-    { href: '/kontakt', label: 'Kontakt' },
-  ];
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const getTotalItems = useCartStore((state) => state.getTotalItems)
+  const totalItems = getTotalItems()
 
   return (
-    <nav className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="container mx-auto px-4">
+    <header className="bg-white shadow-sm sticky top-0 z-50">
+      <nav className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8" aria-label="Top">
         <div className="flex h-16 items-center justify-between">
           {/* Logo */}
-          <Link href="/" className="flex items-center space-x-2">
-            <Image
-              src="/logo.jpg"
-              alt="Vypečená Kůrka"
-              width={40}
-              height={40}
-              className="rounded-full"
-            />
-            <span className="text-xl font-bold text-orange-600">
-              Vypečená Kůrka
-            </span>
-          </Link>
+          <div className="flex items-center">
+            <Link href="/" className="flex items-center space-x-3">
+              <Image
+                src="/logo.jpg"
+                alt="Vypečená Kůrka"
+                width={40}
+                height={40}
+                className="rounded-full"
+              />
+              <span className="text-xl font-bold text-orange-600">
+                Vypečená Kůrka
+              </span>
+            </Link>
+          </div>
 
-          {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center space-x-6">
-            {navItems.map((item) => (
+          {/* Desktop navigation */}
+          <div className="hidden md:flex items-center space-x-8">
+            {navigation.map((item) => (
               <Link
-                key={item.href}
+                key={item.name}
                 href={item.href}
-                className="text-sm font-medium transition-colors hover:text-orange-600"
+                className="text-gray-700 hover:text-orange-600 px-3 py-2 text-sm font-medium transition-colors"
               >
-                {item.label}
+                {item.name}
               </Link>
             ))}
           </div>
 
-          {/* Cart */}
+          {/* Cart and mobile menu button */}
           <div className="flex items-center space-x-4">
+            {/* Cart button */}
             <Link href="/objednavka">
               <Button variant="outline" size="sm" className="relative">
                 <ShoppingCart className="h-4 w-4" />
                 {totalItems > 0 && (
-                  <Badge
-                    variant="destructive"
-                    className="absolute -top-2 -right-2 h-5 w-5 rounded-full p-0 text-xs"
-                  >
+                  <span className="absolute -top-2 -right-2 bg-orange-600 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
                     {totalItems}
-                  </Badge>
+                  </span>
                 )}
+                <span className="ml-2 hidden sm:inline">Košík</span>
               </Button>
             </Link>
 
-            {/* Mobile menu trigger */}
-            <Button variant="ghost" size="sm" className="md:hidden">
-              <Menu className="h-4 w-4" />
-            </Button>
+            {/* Mobile menu button */}
+            <div className="md:hidden">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              >
+                {mobileMenuOpen ? (
+                  <X className="h-5 w-5" />
+                ) : (
+                  <Menu className="h-5 w-5" />
+                )}
+              </Button>
+            </div>
           </div>
         </div>
-      </div>
-    </nav>
-  );
+
+        {/* Mobile menu */}
+        {mobileMenuOpen && (
+          <div className="md:hidden border-t">
+            <div className="py-2 space-y-1">
+              {navigation.map((item) => (
+                <Link
+                  key={item.name}
+                  href={item.href}
+                  className="block px-3 py-2 text-base font-medium text-gray-700 hover:text-orange-600 hover:bg-gray-50"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  {item.name}
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
+      </nav>
+    </header>
+  )
 } 

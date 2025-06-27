@@ -1,18 +1,6 @@
-import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
-import type { CartItem } from '@/types';
-
-interface CartStore {
-  items: CartItem[];
-  selectedBakeDate: string | null;
-  addItem: (productId: string, bakeDate: string, qty?: number) => void;
-  removeItem: (productId: string, bakeDate: string) => void;
-  updateQty: (productId: string, bakeDate: string, qty: number) => void;
-  clearCart: () => void;
-  setSelectedBakeDate: (date: string) => void;
-  getTotalItems: () => number;
-  getItemsForBakeDate: (bakeDate: string) => CartItem[];
-}
+import { create } from 'zustand'
+import { persist } from 'zustand/middleware'
+import type { CartStore, CartItem, Product } from '@/types'
 
 export const useCartStore = create<CartStore>()(
   persist(
@@ -20,66 +8,79 @@ export const useCartStore = create<CartStore>()(
       items: [],
       selectedBakeDate: null,
 
-      addItem: (productId, bakeDate, qty = 1) => {
+      addItem: (productId: string, bakeDate: string, qty = 1) => {
         set((state) => {
           const existingItemIndex = state.items.findIndex(
             (item) => item.productId === productId && item.bakeDate === bakeDate
-          );
+          )
 
-          if (existingItemIndex > -1) {
-            const newItems = [...state.items];
-            newItems[existingItemIndex].qty += qty;
-            return { items: newItems };
+          if (existingItemIndex >= 0) {
+            // Update existing item quantity
+            const updatedItems = [...state.items]
+            updatedItems[existingItemIndex].qty += qty
+            return { ...state, items: updatedItems }
           } else {
+            // Add new item
             return {
-              items: [...state.items, { productId, bakeDate, qty }],
-            };
+              ...state,
+              items: [...state.items, { productId, qty, bakeDate }],
+              selectedBakeDate: state.selectedBakeDate || bakeDate,
+            }
           }
-        });
+        })
       },
 
-      removeItem: (productId, bakeDate) => {
+      removeItem: (productId: string, bakeDate: string) => {
         set((state) => ({
+          ...state,
           items: state.items.filter(
             (item) => !(item.productId === productId && item.bakeDate === bakeDate)
           ),
-        }));
+        }))
       },
 
-      updateQty: (productId, bakeDate, qty) => {
+      updateQty: (productId: string, bakeDate: string, qty: number) => {
         if (qty <= 0) {
-          get().removeItem(productId, bakeDate);
-          return;
+          get().removeItem(productId, bakeDate)
+          return
         }
 
         set((state) => {
-          const newItems = state.items.map((item) =>
+          const updatedItems = state.items.map((item) =>
             item.productId === productId && item.bakeDate === bakeDate
               ? { ...item, qty }
               : item
-          );
-          return { items: newItems };
-        });
+          )
+          return { ...state, items: updatedItems }
+        })
       },
 
       clearCart: () => {
-        set({ items: [], selectedBakeDate: null });
-      },
-
-      setSelectedBakeDate: (date) => {
-        set({ selectedBakeDate: date });
+        set({ items: [], selectedBakeDate: null })
       },
 
       getTotalItems: () => {
-        return get().items.reduce((total, item) => total + item.qty, 0);
+        return get().items.reduce((total, item) => total + item.qty, 0)
       },
 
-      getItemsForBakeDate: (bakeDate) => {
-        return get().items.filter((item) => item.bakeDate === bakeDate);
+      getTotalPrice: (products: Product[]) => {
+        const items = get().items
+        return items.reduce((total, item) => {
+          const product = products.find((p) => p.id === item.productId)
+          return total + (product?.priceCents || 0) * item.qty
+        }, 0)
+      },
+
+      setSelectedBakeDate: (date: string) => {
+        set({ selectedBakeDate: date })
       },
     }),
     {
-      name: 'kurka-cart-storage',
+      name: 'vypecena-kurka-cart',
+      partialize: (state) => ({
+        items: state.items,
+        selectedBakeDate: state.selectedBakeDate,
+      }),
     }
   )
-); 
+) 

@@ -1,30 +1,35 @@
-import type { Metadata } from "next";
-import { Inter } from "next/font/google";
-import "./globals.css";
-import { Navbar } from "@/components/navbar";
+import type { Metadata } from 'next'
+import { Inter } from 'next/font/google'
+import './globals.css'
+import { Navbar } from '@/components/navbar'
 
-const inter = Inter({
-  subsets: ["latin"],
-  variable: "--font-inter",
-});
+const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: "Vypečená Kůrka - Tradiční kváskový chléb Brno",
-  description: "Čerstvý kváskový chléb pečený tradičním způsobem v Brně. Pickup v úterý a pátek na Kopretinova 17, Brno-Jundrov.",
-  keywords: ["kváskový chléb", "Brno", "pekárna", "tradiční pečení", "bio chléb"],
-};
+  title: 'Vypečená Kůrka - Čerstvý kváskový chléb',
+  description: 'Tradiční pekárna v Brně. Pečeme s láskou čerstvý kváskový chléb každé úterý a pátek. Přírodní suroviny, řemeslná výroba.',
+  keywords: ['pekárna', 'kváskový chléb', 'Brno', 'čerstvý chléb', 'tradiční pečení'],
+  authors: [{ name: 'Vypečená Kůrka' }],
+  openGraph: {
+    title: 'Vypečená Kůrka - Čerstvý kváskový chléb',
+    description: 'Tradiční pekárna v Brně. Pečeme s láskou čerstvý kváskový chléb.',
+    images: ['/logo.jpg'],
+    locale: 'cs_CZ',
+    type: 'website',
+  },
+}
 
 export default function RootLayout({
   children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+}: {
+  children: React.ReactNode
+}) {
   return (
-    <html lang="cs" className={inter.variable}>
-      <body className="min-h-screen bg-background font-sans antialiased">
+    <html lang="cs">
+      <body className={inter.className}>
         <Navbar />
         <main>{children}</main>
       </body>
     </html>
-  );
-}
+  )
+} 
