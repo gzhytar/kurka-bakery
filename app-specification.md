@@ -1,8 +1,7 @@
-
-# Vypečená Kůrka – Full Application Specification
+# Vypečená Kůrka – Full Application Specification
 
 *(Brand‑site & E‑shop — MVP)*  
-_Last updated: 27 Jun 2025_
+_Last updated: 27 Jun 2025_
 
 ---
 
@@ -10,16 +9,16 @@ _Last updated: 27 Jun 2025_
 
 | Attribute | Value |
 |-----------|-------|
-| **Framework** | **Next.js 15** (App Router, server components) |
+| **Framework** | **Next.js 15** (App Router, server components) |
 | **Language** | TypeScript (strict) |
-| **UI / Styling** | Radix UI primitives + Tailwind CSS |
-| **Auth** | NextAuth v5 — Google & Facebook OAuth; guest checkout (e‑mail + phone) |
+| **UI / Styling** | Radix UI primitives + Tailwind CSS |
+| **Auth** | NextAuth v5 — Google & Facebook OAuth; guest checkout (e‑mail + phone) |
 | **Payments** | Stripe Checkout (Session API) — CZK only |
-| **Data Store** | **Firebase** – Cloud Firestore (NoSQL) for business data; Cloud Storage for images & assets |
-| **Hosting / Functions** | **Firebase Hosting** + Cloud Functions (Node 20) for SSR & API |
-| **Analytics / Monitoring** | Google Analytics 4 or Plausible; Sentry (FE & Functions) |
+| **Data Store** | **Vercel Postgres** or **PlanetScale** for relational data; **Vercel Blob** for images & assets |
+| **Hosting / Functions** | **Vercel** — Edge Functions for API endpoints and serverless functions |
+| **Analytics / Monitoring** | Vercel Analytics + Speed Insights; Sentry for error tracking |
 | **Locales** | Czech (default); i18n scaffold ready for future EN |
-| **Fulfilment** | Local pick‑up only — **Kopretinova 17, Brno‑Jundrov**<br>Bake days **Tuesday & Friday** |
+| **Fulfilment** | Local pick‑up only — **Kopretinova 17, Brno‑Jundrov**<br>Bake days **Tuesday & Friday** |
 
 ---
 
@@ -29,7 +28,7 @@ _Last updated: 27 Jun 2025_
 /
 /home                 [GET /]
   ├─ Hero (bread_1.jpg, logo overlay)
-  ├─ USP Tiles (“Kváskový chléb”, “Pečeno v úterý / pátek”)
+  ├─ USP Tiles ("Kváskový chléb", "Pečeno v úterý / pátek")
   ├─ Featured Products (first 4 active stock items)
   └─ Newsletter CTA
 /shop
@@ -41,60 +40,55 @@ _Last updated: 27 Jun 2025_
 /faq
 /kontakt              – Map embed & pick‑up details
 /admin (protected by role === 'admin')
-  ├─ /admin/stock     – “Bake‑Day Stock” board
+  ├─ /admin/stock     – "Bake‑Day Stock" board
   └─ /admin/orders    – Orders list (filter by date)
 ```
 
 ---
 
-## 2. Core User Flows
+## 2. Core User Flows
 
 ### 2.1 Browsing & Adding to Cart
 1. Visitor lands on **/shop**.  
 2. Client‑side filters query `GET /api/products?date=YYYY‑MM‑DD` (defaults to next bake day).  
-3. “**Přidat do košíku**” dispatches `{ productId, bakeDate }` into Zustand cart store.
+3. "**Přidat do košíku**" dispatches `{ productId, bakeDate }` into Zustand cart store.
 
 ### 2.2 Checkout
-1. **Step 1** – Choose bake day (radio with next four Tue / Fri dates).  
-2. **Step 2** – Auth selection:  
+1. **Step 1** – Choose bake day (radio with next four Tue / Fri dates).  
+2. **Step 2** – Auth selection:  
    * **OAuth** – Google / Facebook popup.  
    * **Guest** – enter email & phone (validated).  
-3. **Step 3** – Stripe Checkout session (metadata includes `bakeDate`, `cartId`).  
-4. Stripe sends `payment_intent.succeeded` → Cloud Function updates Firestore: creates `orders/<orderId>` doc, decrements `stockDays/<date>.remainingQty`.
+3. **Step 3** – Stripe Checkout session (metadata includes `bakeDate`, `cartId`).  
+4. Stripe sends `payment_intent.succeeded` → Vercel Function updates database: creates order record, decrements stock quantities.
 
 ### 2.3 Admin: Managing Stock
-- `/admin/stock` table lists four upcoming bake days with editable “Loaves available”.  
-- Submit triggers **Callable** `adminUpdateStockDay` which modifies `stockDays/{date}`.
+- `/admin/stock` table lists four upcoming bake days with editable "Loaves available".  
+- Submit triggers **API call** to `/api/admin/stock` which modifies stock records.
 
 ### 2.4 Admin: Order Fulfilment
 - `/admin/orders` date picker defaults to *today*.  
 - Rows show customer contact, items, Stripe status badge.  
-- “Mark picked‑up” button sets `status = 'FULFILLED'`.
+- "Mark picked‑up" button sets `status = 'FULFILLED'`.
 
 ---
 
-## 3. Data Model (Firestore Collections)
+## 3. Data Model (Vercel Postgres / PlanetScale)
 
-| Collection | Doc ID | Key Fields |
-|------------|--------|-----------|
-| **products** | slug (e.g., `chleb-psenicno-zitny`) | `name`, `description`, `priceCents`, `imagePath`, `isActive`, `createdAt` |
-| **stockDays** | ISO date `YYYY‑MM‑DD` | `totalQty`, `remainingQty`, `updatedAt` |
-| **orders** | auto‑ID | `bakeDate`, `email`, `phone`, `userId?`, `stripeId`, `status`, `createdAt` |
-| **orderLineItems** | auto‑ID | `orderId` (ref), `productId` (ref), `qty`, `priceCents` |
+| Table | Primary Key | Key Fields |
+|-------|-------------|-----------|
+| **products** | `id` (UUID) | `slug`, `name`, `description`, `price_cents`, `image_path`, `is_active`, `created_at` |
+| **stock_days** | `date` (DATE) | `total_qty`, `remaining_qty`, `updated_at` |
+| **orders** | `id` (UUID) | `bake_date`, `email`, `phone`, `user_id`, `stripe_session_id`, `status`, `created_at` |
+| **order_line_items** | `id` (UUID) | `order_id` (FK), `product_id` (FK), `qty`, `price_cents` |
+| **users** | `id` (UUID) | `email`, `name`, `role`, `created_at` |
 
 ### Enum: `status`
 `PENDING` · `PAID` · `FULFILLED` · `CANCELLED`
 
-### Cloud Storage
-```
-gs://vypecena-kurka-assets/
-  logo.jpg
-  bread_1.jpg
-  bread_2.jpg
-  bread_3.jpg
-  mikuska_1.jpg
-  mikuska_2.jpg
-```
+### Image Storage
+- **Vercel Blob** for product images and assets
+- CDN-optimized URLs with automatic compression
+- Next.js Image optimization
 
 ---
 
@@ -113,15 +107,16 @@ gs://vypecena-kurka-assets/
 
 ---
 
-## 5. API Surface (Cloud Functions)
+## 5. API Surface (Vercel Functions)
 
-| Function Type | Name / Path | Auth? | Purpose |
-|---------------|-------------|-------|---------|
-| HTTPS POST | `/createCheckoutSession` | Public | Builds Stripe session from cart & returns URL |
-| HTTPS POST | `/stripeWebhook` | Stripe Sig | Handles Stripe events (payments, refunds) |
-| Callable | `adminUpdateStockDay` | Admin | `{date, totalQty}` – update stock |
-| Callable | `adminOrdersByDate` | Admin | `{date}` – fetch orders & line items |
-| HTTPS GET | `/products` | Public | `?date=YYYY‑MM‑DD` → list products & remainingQty |
+| Endpoint | Method | Auth? | Purpose |
+|----------|--------|-------|---------|
+| `/api/products` | GET | Public | `?date=YYYY‑MM‑DD` → list products & remainingQty |
+| `/api/checkout` | POST | Public | Creates Stripe session from cart & returns URL |
+| `/api/webhooks/stripe` | POST | Stripe Sig | Handles Stripe events (payments, refunds) |
+| `/api/admin/stock` | PUT | Admin | `{date, totalQty}` – update stock |
+| `/api/admin/orders` | GET | Admin | `?date=YYYY‑MM‑DD` – fetch orders & line items |
+| `/api/auth/[...nextauth]` | * | NextAuth | OAuth & session management |
 
 ---
 
@@ -129,29 +124,31 @@ gs://vypecena-kurka-assets/
 
 | Category | Requirement |
 |----------|-------------|
-| **Performance** | Largest Contentful Paint ≤ 2.5 s on 4G (Lighthouse Mobile) |
-| **Accessibility** | WCAG 2.2 AA; fully keyboard navigable |
-| **Security** | Firestore rules, Auth token checks in Functions, CSRF defences on POST |
+| **Performance** | Largest Contentful Paint ≤ 2.5 s on 4G (Lighthouse Mobile) |
+| **Accessibility** | WCAG 2.2 AA; fully keyboard navigable |
+| **Security** | Database connection pooling, parameterized queries, rate limiting |
 ---
 
 ## 7. Dev & Ops Workflow
 
 | Stage | Tooling |
 |-------|---------|
-| Local Dev | `firebase emulators:start` (Hosting, Functions, Firestore) |
-| CI / CD | GitHub Actions: lint → type‑check → unit tests → Playwright smoke → `firebase deploy --only hosting,functions` (on `main`) |
-| Preview Channels | `firebase hosting:channel:deploy pr‑<num>` for pull requests |
-| Monitoring | Sentry, Firebase Performance + Cloud Logging |
+| Local Dev | `npm run dev` with local PostgreSQL or PlanetScale dev branch |
+| CI / CD | Vercel automatic deployments from GitHub: lint → type‑check → build → deploy (on `main`) |
+| Preview Environments | Automatic preview deployments for pull requests |
+| Database Migrations | Drizzle ORM or Prisma for schema management |
+| Monitoring | Vercel Analytics, Speed Insights, and Sentry integration |
 
 ---
 
 ## 8. Launch Checklist
 
-- [ ] Firebase project **vypecena‑kurka‑prod** set up, billing enabled  
-- [ ] Domain `vypecenakurka.cz` mapped to Firebase Hosting  
-- [ ] Stripe live keys & webhook secret loaded via `functions:config:set`  
-- [ ] Firestore composite index on `orders(status, bakeDate)`  
-- [ ] Images optimised (< 200 kB) and uploaded to Cloud Storage bucket  
+- [ ] Vercel project connected to GitHub repository  
+- [ ] Custom domain `vypecenakurka.cz` configured in Vercel  
+- [ ] Database (Vercel Postgres or PlanetScale) provisioned and connected
+- [ ] Stripe live keys configured in Vercel environment variables  
+- [ ] Images uploaded to Vercel Blob storage
+- [ ] Database schema migrated to production
 - [ ] GDPR‑compliant cookie banner (analytics only)  
 - [ ] SEO meta tags & `robots.txt` added  
 
@@ -161,7 +158,7 @@ gs://vypecena-kurka-assets/
 
 | Phase | Features |
 |-------|----------|
-| **CMS** | Integrate Sanity or Storyblok for content pages & blog |
+| **CMS** | Integrate Sanity or Contentful for content pages & blog |
 | **Delivery** | Add shipping options & calculators |
 | **Marketing** | Coupons, gift cards, abandoned‑cart emails |
 | **Subscriptions** | Weekly bread box subscription (Stripe recurring) |
@@ -182,7 +179,7 @@ gs://vypecena-kurka-assets/
 
 ## 11. IMPLEMENTATION STATUS & TECHNICAL GUIDE
 
-*Added: 27 Jun 2025 — Current implementation details for LLM/Agent reference*
+*Updated: 27 Jun 2025 — Migrated from Firebase to Vercel hosting*
 
 ### 11.1 Implementation Completion Status
 
@@ -197,11 +194,12 @@ gs://vypecena-kurka-assets/
 | **UI System** | ✅ Complete | `src/components/ui/` | Radix UI + Tailwind components |
 | **Typography & Styling** | ✅ Complete | `src/app/globals.css`, `tailwind.config.js` | Orange brand theme implemented |
 | **Mock Data** | ✅ Complete | Embedded in pages | Product catalog with sample data |
+| **Deployment** | ✅ Complete | Vercel hosting | Live at kurka-bakery-co9chu21h-gzhytars-projects.vercel.app |
 
 #### 🔄 **IN PROGRESS / READY FOR INTEGRATION**
 | Feature | Status | Required Work | Priority |
 |---------|--------|---------------|----------|
-| **Firebase Connection** | 🔧 Config Ready | Connect to real Firestore DB | HIGH |
+| **Database Integration** | 🔧 Ready | Set up Vercel Postgres + schema | HIGH |
 | **Authentication** | 🔧 Config Ready | Implement NextAuth v5 flows | HIGH |
 | **Stripe Integration** | 🔧 Config Ready | Add checkout + webhook handlers | HIGH |
 | **Admin Panel** | ⏳ Not Started | Build `/admin/stock` and `/admin/orders` | MEDIUM |
@@ -209,7 +207,7 @@ gs://vypecena-kurka-assets/
 
 #### ❌ **NOT IMPLEMENTED**
 - Order confirmation page (`/objednavka/diky`)
-- Cloud Functions for API endpoints
+- Vercel Functions for API endpoints
 - Newsletter signup functionality
 - Mobile cart drawer component
 - Admin authentication and RBAC
@@ -241,7 +239,6 @@ src/
 │   ├── bread-card.tsx          # Product card component
 │   └── date-radio-group.tsx    # Bake day selector
 ├── lib/
-│   ├── firebase.ts             # Firebase config (ready)
 │   └── utils.ts                # Utilities (formatPrice, dates)
 ├── store/
 │   └── cart.ts                 # Zustand cart store
@@ -250,205 +247,149 @@ src/
 └── .env.example                # Environment variables template
 ```
 
-#### **Key Dependencies Installed**
+#### **Key Dependencies**
 ```json
 {
   "dependencies": {
     "next": "15.3.4",
     "react": "^19.0.0",
-    "firebase": "^10.x",
-    "next-auth": "^5.x",
-    "stripe": "^14.x",
-    "zustand": "^4.x",
+    "next-auth": "^4.24.0",
+    "stripe": "^14.25.0",
+    "zustand": "^4.5.2",
     "@radix-ui/react-*": "^1.x",
-    "tailwindcss": "^4.x",
-    "lucide-react": "^0.x",
-    "clsx": "^2.x"
+    "tailwindcss": "^3.4.0",
+    "lucide-react": "^0.460.0",
+    "clsx": "^2.1.1"
   }
 }
 ```
 
-### 11.3 Component API Reference
+### 11.3 Database Schema (Recommended)
 
-#### **`<BreadCard />` - Product Display**
+#### **Using Drizzle ORM + Vercel Postgres**
 ```typescript
-interface BreadCardProps {
-  product: ProductWithStock;      // Product with remainingQty
-  selectedBakeDate: string;       // ISO date string
-}
-// Features: Add to cart, quantity controls, stock indicators
+// lib/db/schema.ts
+export const products = pgTable('products', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  slug: varchar('slug', { length: 100 }).unique().notNull(),
+  name: varchar('name', { length: 200 }).notNull(),
+  description: text('description'),
+  priceCents: integer('price_cents').notNull(),
+  imagePath: varchar('image_path', { length: 500 }),
+  isActive: boolean('is_active').default(true),
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
+export const stockDays = pgTable('stock_days', {
+  date: date('date').primaryKey(),
+  totalQty: integer('total_qty').notNull(),
+  remainingQty: integer('remaining_qty').notNull(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+});
+
+export const orders = pgTable('orders', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  bakeDate: date('bake_date').notNull(),
+  email: varchar('email', { length: 255 }).notNull(),
+  phone: varchar('phone', { length: 20 }),
+  userId: uuid('user_id').references(() => users.id),
+  stripeSessionId: varchar('stripe_session_id', { length: 200 }),
+  status: varchar('status', { length: 20 }).default('PENDING'),
+  createdAt: timestamp('created_at').defaultNow(),
+});
 ```
 
-#### **`<DateRadioGroup />` - Bake Day Selection**
-```typescript
-interface DateRadioGroupProps {
-  selectedDate: string | null;
-  onDateChange: (date: string) => void;
-  stockData?: Record<string, { remainingQty: number; totalQty: number }>;
-}
-// Auto-generates next 4 Tuesday/Friday dates
-```
-
-#### **Cart Store (Zustand)**
-```typescript
-interface CartStore {
-  items: CartItem[];              // { productId, qty, bakeDate }
-  selectedBakeDate: string | null;
-  addItem: (productId: string, bakeDate: string, qty?: number) => void;
-  removeItem: (productId: string, bakeDate: string) => void;
-  updateQty: (productId: string, bakeDate: string, qty: number) => void;
-  clearCart: () => void;
-  getTotalItems: () => number;
-}
-// Persisted to localStorage automatically
-```
-
-### 11.4 Development Instructions for Future LLM/Agents
-
-#### **Setting Up Development Environment**
-1. **Prerequisites**: Node.js 18+, npm, Firebase CLI
-2. **Installation**:
-   ```bash
-   cd kurka-bakery
-   npm install
-   cp .env.example .env.local  # Configure environment variables
-   npm run dev                 # Start development server
-   ```
-
-#### **Mock Data Location & Structure**
-- **Products**: Embedded in `src/app/page.tsx` and `src/app/shop/page.tsx`
-- **Stock Data**: Mock object in `src/app/shop/page.tsx` as `mockStockData`
-- **Product Schema**: Defined in `src/types/index.ts` as `ProductWithStock`
-
-```typescript
-// Current mock product structure
-const mockProducts = [
-  {
-    id: '1',
-    slug: 'chleb-psenicno-zitny',
-    name: 'Chléb pšenično-žitný',
-    description: '...',
-    priceCents: 8500,           // 85.00 CZK
-    imagePath: '/chleba.jpg',
-    isActive: true,
-    createdAt: new Date(),
-    remainingQty: 12            // Stock for selected date
-  }
-];
-```
-
-#### **Adding New Products**
-1. Add product data to mock arrays in relevant pages
-2. Ensure image exists in `/public/` folder
-3. Update product detail page routing in `/shop/[slug]/page.tsx`
-4. Follow existing TypeScript interfaces in `src/types/index.ts`
-
-#### **Styling Guidelines**
-- **Primary Color**: Orange (`text-orange-600`, `bg-orange-600`)
-- **Typography**: Inter font (`font-sans`)
-- **Spacing**: Consistent padding/margins using Tailwind scale
-- **Components**: Use Radix UI primitives for accessibility
-- **Responsive**: Mobile-first approach (`md:`, `lg:` breakpoints)
-
-### 11.5 Next Development Priorities
-
-#### **Phase 1: Core E-commerce (Essential for Launch)**
-1. **Checkout Flow** (`/objednavka`)
-   - Multi-step wizard: Date → Auth → Payment
-   - Guest checkout with email/phone validation
-   - Integration with Zustand cart store
-
-2. **Firebase Integration**
-   - Connect to real Firestore database
-   - Replace mock data with Firebase queries
-   - Implement real-time stock updates
-
-3. **Stripe Payment Processing**
-   - Create checkout session API endpoint
-   - Handle payment webhooks
-   - Order confirmation flow
-
-#### **Phase 2: Admin & Management**
-1. **Admin Panel** (`/admin/stock`, `/admin/orders`)
-   - Stock management interface
-   - Order fulfillment dashboard
-   - Admin authentication with role-based access
-
-2. **Authentication System**
-   - NextAuth v5 with Google/Facebook OAuth
-   - User profile management
-   - Guest vs. authenticated user flows
-
-#### **Phase 3: Production Readiness**
-1. **Email Notifications**
-   - Order confirmations
-   - Pickup reminders
-   - Admin order notifications
-
-2. **Analytics & Monitoring**
-   - Google Analytics 4 integration
-   - Error tracking with Sentry
-   - Performance monitoring
-
-### 11.6 Known Technical Debt & Issues
-
-#### **Current Limitations**
-- **No API Layer**: Currently using mock data, needs Firebase connection
-- **Missing Checkout**: Cart functionality exists but no payment flow
-- **No Admin Panel**: Management features not yet implemented
-- **Static Images**: Product images are static, need Cloud Storage integration
-- **No Email System**: Order confirmations missing
-
-#### **Performance Considerations**
-- **Image Optimization**: Use Next.js Image component (already implemented)
-- **Bundle Size**: Consider code splitting for admin panel
-- **State Persistence**: Cart store uses localStorage (good for MVP)
-
-#### **Security TODOs**
-- Implement Firestore security rules
-- Add CSRF protection for API endpoints
-- Validate all user inputs
-- Implement rate limiting for orders
-
-### 11.7 Environment Variables Required
+### 11.4 Environment Variables Required
 
 ```bash
-# Firebase Configuration
-NEXT_PUBLIC_FIREBASE_API_KEY=
-NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=
-NEXT_PUBLIC_FIREBASE_PROJECT_ID=
-NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=
-NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=
-NEXT_PUBLIC_FIREBASE_APP_ID=
+# Database (Vercel Postgres)
+POSTGRES_URL=
+POSTGRES_PRISMA_URL=
+POSTGRES_URL_NON_POOLING=
 
 # NextAuth Configuration  
-NEXTAUTH_URL=http://localhost:3000
+NEXTAUTH_URL=https://your-domain.vercel.app
 NEXTAUTH_SECRET=
 
 # OAuth Provider Keys
-GOOGLE_CLIENT_ID=
-GOOGLE_CLIENT_SECRET=
-FACEBOOK_CLIENT_ID=
-FACEBOOK_CLIENT_SECRET=
+AUTH_GOOGLE_ID=
+AUTH_GOOGLE_SECRET=
+AUTH_FACEBOOK_ID=
+AUTH_FACEBOOK_SECRET=
 
 # Stripe Configuration
 NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=
 STRIPE_SECRET_KEY=
 STRIPE_WEBHOOK_SECRET=
+
+# Vercel Blob (Image Storage)
+BLOB_READ_WRITE_TOKEN=
 ```
 
-### 11.8 Testing Strategy
+### 11.5 Migration from Firebase Complete
 
-#### **Current Testing State**
-- ❌ **No tests implemented yet**
-- 🔧 **Testing framework needed**: Jest + React Testing Library
-- 🔧 **E2E testing needed**: Playwright for user flows
+#### **✅ Removed**
+- Firebase SDK and all dependencies
+- Firebase configuration files (`firebase.ts`, `storage.rules`)
+- Firebase Storage hostname from Next.js config
 
-#### **Recommended Test Coverage**
-1. **Unit Tests**: Cart store, utility functions, component logic
-2. **Integration Tests**: Product browsing, cart operations, date selection
-3. **E2E Tests**: Complete user journey from browse → add to cart → checkout
+#### **✅ Updated Architecture**
+- **Hosting**: Vercel (instead of Firebase Hosting)
+- **Database**: Vercel Postgres/PlanetScale (instead of Firestore)
+- **Functions**: Vercel Functions (instead of Cloud Functions)
+- **Storage**: Vercel Blob (instead of Cloud Storage)
+- **Auth**: NextAuth on Vercel (instead of Firebase Auth)
+
+#### **✅ Benefits of Vercel Stack**
+- **Simpler deployment**: Git-based deployments
+- **Better performance**: Edge functions and CDN
+- **SQL database**: Better for e-commerce with relationships
+- **Integrated analytics**: Vercel Analytics built-in
+- **Cost-effective**: More predictable pricing
+
+### 11.6 Next Development Priorities
+
+#### **Phase 1: Database Setup (Essential for Launch)**
+1. **Set up Vercel Postgres**
+   - Create database instance
+   - Define schema with Drizzle ORM
+   - Migrate sample data from mock arrays
+
+2. **API Endpoints**
+   - `/api/products` - Product catalog with stock
+   - `/api/checkout` - Stripe session creation
+   - `/api/webhooks/stripe` - Payment processing
+
+3. **Database Integration**
+   - Replace all mock data with real database queries
+   - Implement real-time stock management
+   - Add database migrations
+
+#### **Phase 2: Payment & Orders**
+1. **Stripe Integration**
+   - Checkout session creation
+   - Webhook handling for payments
+   - Order creation flow
+
+2. **Order Management**
+   - Order confirmation pages
+   - Email notifications
+   - Admin order dashboard
+
+### 11.7 Deployment Status
+
+#### **✅ Current Deployment**
+- **Live URL**: https://kurka-bakery-co9chu21h-gzhytars-projects.vercel.app
+- **Status**: MVP frontend deployed and functional
+- **Features**: All static pages, cart functionality, responsive design
+
+#### **🔧 Next Steps for Production**
+1. Configure custom domain (`vypecenakurka.cz`)
+2. Set up Vercel Postgres database
+3. Implement API endpoints for dynamic data
+4. Configure production environment variables
+5. Set up monitoring and analytics
 
 ---
 
-*🤖 For LLM/Agents: This implementation guide should be updated whenever significant changes are made to the codebase. Always check the current file structure against this documentation before making changes.*
+*🤖 For LLM/Agents: The application has been successfully migrated from Firebase to Vercel hosting. All Firebase dependencies have been removed and the architecture updated for Vercel's serverless platform.*

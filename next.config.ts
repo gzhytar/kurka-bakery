@@ -1,17 +1,15 @@
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
-  experimental: {
-    optimizePackageImports: ['lucide-react']
-  },
   images: {
     remotePatterns: [
       {
         protocol: 'https',
-        hostname: 'firebasestorage.googleapis.com',
+        hostname: 'images.unsplash.com',
         port: '',
-        pathname: '/v0/b/**',
+        pathname: '/**',
       },
+      // Add other image domains as needed for Vercel hosting
     ],
   },
 }

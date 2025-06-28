@@ -13,7 +13,7 @@ import { Heart, Clock, Wheat, MapPin } from 'lucide-react'
 import { formatPrice, getNextBakeDays } from '@/lib/utils'
 import type { ProductWithStock } from '@/types'
 
-// Mock data - this would come from Firebase in production
+// Mock data - this would come from the database in production
 const mockProducts: ProductWithStock[] = [
   {
     id: '1',
@@ -106,7 +106,7 @@ export default function HomePage() {
   useEffect(() => {
     // Update featured products based on selected date
     if (selectedBakeDate) {
-      // In production, this would fetch from Firebase based on the date
+      // In production, this would fetch from the database based on the date
       setFeaturedProducts(mockProducts.slice(0, 4))
     }
   }, [selectedBakeDate])
