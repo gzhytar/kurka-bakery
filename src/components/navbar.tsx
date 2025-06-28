@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
-import { Menu, X, ShoppingCart } from 'lucide-react'
+import { Menu, X, ShoppingCart, Settings } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useCartStore } from '@/store/cart'
 
@@ -15,10 +15,21 @@ const navigation = [
   { name: 'Kontakt', href: '/kontakt' },
 ]
 
+// Mock auth hook - in production this would use NextAuth
+const useAuth = () => {
+  // For demo purposes, return admin user
+  // In production, this would check actual auth state
+  return {
+    user: { email: 'admin@vypecenakurka.cz', role: 'admin' },
+    isAuthenticated: true
+  }
+}
+
 export function Navbar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [isHydrated, setIsHydrated] = useState(false)
   const getTotalItems = useCartStore((state) => state.getTotalItems)
+  const { user, isAuthenticated } = useAuth()
   
   // Get total items only after hydration to prevent mismatch
   const totalItems = isHydrated ? getTotalItems() : 0
@@ -61,8 +72,18 @@ export function Navbar() {
             ))}
           </div>
 
-          {/* Cart and mobile menu button */}
+          {/* Cart and admin buttons */}
           <div className="flex items-center space-x-4">
+            {/* Admin button - only show for admin users */}
+            {isAuthenticated && user?.role === 'admin' && (
+              <Link href="/admin">
+                <Button variant="ghost" size="sm" className="hidden sm:flex">
+                  <Settings className="h-4 w-4 mr-2" />
+                  Admin
+                </Button>
+              </Link>
+            )}
+
             {/* Cart button */}
             <Link href="/objednavka">
               <Button variant="outline" size="sm" className="relative">
@@ -110,6 +131,20 @@ export function Navbar() {
                   {item.name}
                 </Link>
               ))}
+              
+              {/* Admin link in mobile menu */}
+              {isAuthenticated && user?.role === 'admin' && (
+                <Link
+                  href="/admin"
+                  className="block px-3 py-2 text-base font-medium text-gray-700 hover:text-orange-600 hover:bg-gray-50"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  <div className="flex items-center">
+                    <Settings className="h-4 w-4 mr-2" />
+                    Admin
+                  </div>
+                </Link>
+              )}
             </div>
           </div>
         )}

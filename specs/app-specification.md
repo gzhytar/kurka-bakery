@@ -39,9 +39,11 @@ _Last updated: 27 Jun 2025_
 /o-nas                – Story page (portrait mikuska_2.jpg)
 /faq
 /kontakt              – Map embed & pick‑up details
-/admin (protected by role === 'admin')
-  ├─ /admin/stock     – "Bake‑Day Stock" board
-  └─ /admin/orders    – Orders list (filter by date)
+/admin (protected by role === 'admin') — **✅ IMPLEMENTED**
+  ├─ /admin/stock     – "Bake‑Day Stock" board ✅
+  └─ /admin/orders    – Orders list (filter by date) ✅
+  
+  📋 **Admin Features**: See [admin-implementation.md](./admin-implementation.md) for complete documentation
 ```
 
 ---
@@ -195,6 +197,7 @@ _Last updated: 27 Jun 2025_
 | **Typography & Styling** | ✅ Complete | `src/app/globals.css`, `tailwind.config.js` | Orange brand theme implemented |
 | **Mock Data** | ✅ Complete | Embedded in pages | Product catalog with sample data |
 | **Deployment** | ✅ Complete | Vercel hosting | Live at kurka-bakery-co9chu21h-gzhytars-projects.vercel.app |
+| **Admin Panel** | ✅ Complete | `src/app/admin/` | Full admin interface - see [admin-implementation.md](./admin-implementation.md) |
 
 #### 🔄 **IN PROGRESS / READY FOR INTEGRATION**
 | Feature | Status | Required Work | Priority |
@@ -202,15 +205,13 @@ _Last updated: 27 Jun 2025_
 | **Database Integration** | 🔧 Ready | Set up Vercel Postgres + schema | HIGH |
 | **Authentication** | 🔧 Config Ready | Implement NextAuth v5 flows | HIGH |
 | **Stripe Integration** | 🔧 Config Ready | Add checkout + webhook handlers | HIGH |
-| **Admin Panel** | ⏳ Not Started | Build `/admin/stock` and `/admin/orders` | MEDIUM |
 | **Cart Checkout** | ⏳ Not Started | Create `/objednavka` multi-step wizard | HIGH |
 
 #### ❌ **NOT IMPLEMENTED**
 - Order confirmation page (`/objednavka/diky`)
-- Vercel Functions for API endpoints
+- Vercel Functions for API endpoints (except admin mock APIs)
 - Newsletter signup functionality
 - Mobile cart drawer component
-- Admin authentication and RBAC
 - Email confirmations
 - Analytics integration
 
@@ -225,6 +226,15 @@ src/
 │   ├── shop/
 │   │   ├── page.tsx            # Product catalog with filters
 │   │   └── [slug]/page.tsx     # Product detail pages
+│   ├── admin/                   # Admin panel (protected routes)
+│   │   ├── layout.tsx          # Admin layout with sidebar navigation
+│   │   ├── page.tsx            # Admin dashboard (redirects to stock)
+│   │   ├── stock/page.tsx      # Stock management interface
+│   │   └── orders/page.tsx     # Orders management interface
+│   ├── api/
+│   │   └── admin/              # Admin API endpoints
+│   │       ├── stock/route.ts  # Stock management API
+│   │       └── orders/route.ts # Orders management API
 │   ├── o-nas/page.tsx          # About page (story + values)
 │   ├── faq/page.tsx            # FAQ with expandable cards
 │   ├── kontakt/page.tsx        # Contact + pickup info
@@ -233,8 +243,10 @@ src/
 │   ├── ui/                     # Base components (Radix UI)
 │   │   ├── button.tsx          # Button with variants
 │   │   ├── card.tsx            # Card layouts
-│   │   └── badge.tsx           # Status badges
-│   ├── navbar.tsx              # Main navigation
+│   │   ├── badge.tsx           # Status badges
+│   │   ├── input.tsx           # Form input component
+│   │   └── select.tsx          # Dropdown select component
+│   ├── navbar.tsx              # Main navigation (includes admin link)
 │   ├── hero.tsx                # Homepage hero section
 │   ├── bread-card.tsx          # Product card component
 │   └── date-radio-group.tsx    # Bake day selector
